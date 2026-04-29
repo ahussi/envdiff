@@ -4,63 +4,68 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
-	"envdiff/internal/diff"
-	"envdiff/internal/parser"
-	"envdiff/internal/report"
+	"github.com/yourusername/envdiff/internal/diff"
+	"github.com/yourusername/envdiff/internal/filter"
+	"github.com/yourusername/envdiff/internal/parser"
+	"github.com/yourusername/envdiff/internal/report"
 )
 
 func main() {
-	var (
-		fileA   = flag.String("a", "", "Path to the first .env file (required)")
-		fileB   = flag.String("b", "", "Path to the second .env file (required)")
-		format  = flag.String("format", "text", "Output format: text or json")
-		labelA  = flag.String("label-a", "", "Label for the first file (defaults to filename)")
-		labelB  = flag.String("label-b", "", "Label for the second file (defaults to filename)")
-	)
+	format := flag.String("format", "text", "Output format: text or json")
+	onlyKinds := flag.String("only", "", "Comma-separated kinds to show: missing_in_a,missing_in_b,mismatch")
+	keyPrefix := flag.String("prefix", "", "Filter results to keys starting with this prefix")
 	flag.Parse()
 
-	if *fileA == "" || *fileB == "" {
-		fmt.Fprintln(os.Stderr, "error: both -a and -b flags are required")
-		flag.Usage()
+	args := flag.Args()
+	if len(args) != 2 {
+		fmt.Fprintln(os.Stderr, "usage: envdiff [flags] <file-a> <file-b>")
 		os.Exit(1)
 	}
 
-	envA, err := parser.Parse(*fileA)
+	envA, err := parser.Parse(args[0])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error reading %s: %v\n", *fileA, err)
+		fmt.Fprintf(os.Stderr, "error reading %s: %v\n", args[0], err)
 		os.Exit(1)
 	}
 
-	envB, err := parser.Parse(*fileB)
+	envB, err := parser.Parse(args[1])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error reading %s: %v\n", *fileB, err)
+		fmt.Fprintf(os.Stderr, "error reading %s: %v\n", args[1], err)
 		os.Exit(1)
 	}
 
-	if *labelA == "" {
-		*labelA = *fileA
-	}
-	if *labelB == "" {
-		*labelB = *fileB
+	results := diff.Compare(envA, envB)
+
+	var kinds []string
+	if *onlyKinds != "" {
+		for _, k := range strings.Split(*onlyKinds, ",") {
+			if k = strings.TrimSpace(k); k != "" {
+				kinds = append(kinds, k)
+			}
+		}
 	}
 
-	diffs := diff.Compare(envA, envB)
+	results = filter.Apply(results, filter.Options{
+		OnlyKinds: kinds,
+		KeyPrefix:  *keyPrefix,
+	})
 
 	switch *format {
 	case "json":
-		if err := report.WriteJSON(os.Stdout, diffs, *labelA, *labelB); err != nil {
-			fmt.Fprintf(os.Stderr, "error writing JSON report: %v\n", err)
+		if err := report.WriteJSON(os.Stdout, results, args[0], args[1]); err != nil {
+			fmt.Fprintf(os.Stderr, "error writing report: %v\n", err)
 			os.Exit(1)
 		}
-	case "text":
-		report.WriteText(os.Stdout, diffs, *labelA, *labelB)
 	default:
-		fmt.Fprintf(os.Stderr, "error: unknown format %q, expected 'text' or 'json'\n", *format)
-		os.Exit(1)
+		if err := report.WriteText(os.Stdout, results, args[0], args[1]); err != nil {
+			fmt.Fprintf(os.Stderr, "error writing report: %v\n", err)
+			os.Exit(1)
+		}
 	}
 
-	if len(diffs) > 0 {
+	if len(results) > 0 {
 		os.Exit(2)
 	}
 }
