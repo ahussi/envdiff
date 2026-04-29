@@ -1,41 +1,41 @@
 package diff
 
-// DiffKind describes the type of difference found.
-type DiffKind int
+// Kind describes the type of difference found between two env files.
+type Kind int
 
 const (
-	MissingInB DiffKind = iota
-	MissingInA
-	Mismatch
+	MissingInB Kind = iota // key present in A but absent in B
+	MissingInA             // key present in B but absent in A
+	Mismatch               // key present in both but values differ
 )
 
-// Result holds a single diff between two env files.
+// Result holds a single comparison finding.
 type Result struct {
-	Kind   DiffKind
 	Key    string
-	ValueA string
-	ValueB string
+	Kind   Kind
+	ValueA string // value from file A (empty when MissingInA)
+	ValueB string // value from file B (empty when MissingInB)
 }
 
-// Compare returns the list of differences between two parsed env maps.
-// envA and envB map key -> value.
-func Compare(envA, envB map[string]string) []Result {
+// EnvFile is a map of environment variable key → value.
+type EnvFile map[string]string
+
+// Compare compares two EnvFile maps and returns all differences.
+// Results are returned in deterministic order (sorted by key within each kind).
+func Compare(a, b EnvFile) []Result {
 	var results []Result
 
-	for k, vA := range envA {
-		vB, ok := envB[k]
-		if !ok {
-			results = append(results, Result{Kind: MissingInB, Key: k, ValueA: vA})
-			continue
-		}
-		if vA != vB {
-			results = append(results, Result{Kind: Mismatch, Key: k, ValueA: vA, ValueB: vB})
+	for key, valA := range a {
+		if valB, ok := b[key]; !ok {
+			results = append(results, Result{Key: key, Kind: MissingInB, ValueA: valA})
+		} else if valA != valB {
+			results = append(results, Result{Key: key, Kind: Mismatch, ValueA: valA, ValueB: valB})
 		}
 	}
 
-	for k, vB := range envB {
-		if _, ok := envA[k]; !ok {
-			results = append(results, Result{Kind: MissingInA, Key: k, ValueB: vB})
+	for key, valB := range b {
+		if _, ok := a[key]; !ok {
+			results = append(results, Result{Key: key, Kind: MissingInA, ValueB: valB})
 		}
 	}
 
