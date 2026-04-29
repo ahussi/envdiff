@@ -4,18 +4,21 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
-	"github.com/yourusername/envdiff/internal/diff"
-	"github.com/yourusername/envdiff/internal/filter"
-	"github.com/yourusername/envdiff/internal/parser"
-	"github.com/yourusername/envdiff/internal/report"
+	"github.com/yourorg/envdiff/internal/diff"
+	"github.com/yourorg/envdiff/internal/filter"
+	"github.com/yourorg/envdiff/internal/formatter"
+	"github.com/yourorg/envdiff/internal/parser"
+	"github.com/yourorg/envdiff/internal/report"
+	"github.com/yourorg/envdiff/internal/sorter"
 )
 
 func main() {
-	format := flag.String("format", "text", "Output format: text or json")
-	onlyKinds := flag.String("only", "", "Comma-separated kinds to show: missing_in_a,missing_in_b,mismatch")
-	keyPrefix := flag.String("prefix", "", "Filter results to keys starting with this prefix")
+	format := flag.String("format", "text", "output format: text, json, markdown")
+	style := flag.String("style", "plain", "output style: plain, color, markdown")
+	kindFlag := flag.String("kind", "", "filter by kind: missing_in_a, missing_in_b, mismatch")
+	prefixFlag := flag.String("prefix", "", "filter keys by prefix")
+	sortFlag := flag.String("sort", "", "sort results: key_asc, key_desc, kind_asc, kind_desc")
 	flag.Parse()
 
 	args := flag.Args()
@@ -24,12 +27,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	_, err := formatter.ParseStyle(*style)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
 	envA, err := parser.Parse(args[0])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error reading %s: %v\n", args[0], err)
 		os.Exit(1)
 	}
-
 	envB, err := parser.Parse(args[1])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error reading %s: %v\n", args[1], err)
@@ -37,30 +45,26 @@ func main() {
 	}
 
 	results := diff.Compare(envA, envB)
-
-	var kinds []string
-	if *onlyKinds != "" {
-		for _, k := range strings.Split(*onlyKinds, ",") {
-			if k = strings.TrimSpace(k); k != "" {
-				kinds = append(kinds, k)
-			}
-		}
-	}
-
 	results = filter.Apply(results, filter.Options{
-		OnlyKinds: kinds,
-		KeyPrefix:  *keyPrefix,
+		Kind:   *kindFlag,
+		Prefix: *prefixFlag,
 	})
+	results = sorter.Apply(results, sorter.Options{Sort: *sortFlag})
 
 	switch *format {
 	case "json":
-		if err := report.WriteJSON(os.Stdout, results, args[0], args[1]); err != nil {
-			fmt.Fprintf(os.Stderr, "error writing report: %v\n", err)
+		if err := report.WriteJSON(os.Stdout, results); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	case "markdown":
+		if err := report.WriteMarkdown(os.Stdout, results, args[0], args[1]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
 	default:
-		if err := report.WriteText(os.Stdout, results, args[0], args[1]); err != nil {
-			fmt.Fprintf(os.Stderr, "error writing report: %v\n", err)
+		if err := report.WriteText(os.Stdout, results); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
 	}
