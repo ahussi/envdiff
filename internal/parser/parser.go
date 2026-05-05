@@ -21,6 +21,15 @@ type EnvFile struct {
 	Entries map[string]Entry
 }
 
+// Keys returns a slice of all keys in the EnvFile.
+func (e *EnvFile) Keys() []string {
+	keys := make([]string, 0, len(e.Entries))
+	for k := range e.Entries {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 // Parse reads a .env file and returns an EnvFile or an error.
 func Parse(path string) (*EnvFile, error) {
 	f, err := os.Open(path)
