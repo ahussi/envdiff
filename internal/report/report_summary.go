@@ -13,7 +13,9 @@ func WriteSummaryText(w io.Writer, results []diff.Result) error {
 		return err
 	}
 	s := summary.Compute(results)
-	summary.WriteText(w, s)
+	if err := summary.WriteText(w, s); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -26,6 +28,8 @@ func WriteSummaryJSON(w io.Writer, results []diff.Result) error {
 		return err
 	}
 	s := summary.Compute(results)
-	summary.WriteJSON(w, s)
+	if err := summary.WriteJSON(w, s); err != nil {
+		return err
+	}
 	return nil
 }
