@@ -9,13 +9,19 @@ import (
 )
 
 // WriteMarkdown writes a Markdown-formatted diff report to w.
+// It renders a summary header, a comparison table of all differing keys,
+// and a footer with the total issue count.
 func WriteMarkdown(w io.Writer, results []diff.Result, fileA, fileB string) error {
-	fmt.Fprintf(w, "# envdiff report\n\n")
-	fmt.Fprintf(w, "Comparing `%s` → `%s`\n\n", fileA, fileB)
+	if _, err := fmt.Fprintf(w, "# envdiff report\n\n"); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(w, "Comparing `%s` → `%s`\n\n", fileA, fileB); err != nil {
+		return err
+	}
 
 	if len(results) == 0 {
-		fmt.Fprintln(w, "✅ No differences found.")
-		return nil
+		_, err := fmt.Fprintln(w, "✅ No differences found.")
+		return err
 	}
 
 	fmt.Fprintf(w, "| Key | Kind | Value A | Value B |\n")
@@ -32,8 +38,8 @@ func WriteMarkdown(w io.Writer, results []diff.Result, fileA, fileB string) erro
 		)
 	}
 
-	fmt.Fprintf(w, "\n_%d issue(s) found._\n", len(results))
-	return nil
+	_, err := fmt.Fprintf(w, "\n_%d issue(s) found._\n", len(results))
+	return err
 }
 
 func escapeMarkdown(s string) string {
