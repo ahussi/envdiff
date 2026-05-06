@@ -23,6 +23,11 @@ type Violation struct {
 	Message string
 }
 
+// Error implements the error interface so a Violation can be used as an error.
+func (v Violation) Error() string {
+	return fmt.Sprintf("%s: %s", v.Key, v.Message)
+}
+
 // Check validates the provided env map against the given rules and returns
 // any violations found. An empty slice means all rules passed.
 func Check(env map[string]string, rules []Rule) []Violation {
