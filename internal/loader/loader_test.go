@@ -57,6 +57,18 @@ func TestLoad_Directory(t *testing.T) {
 	}
 }
 
+func TestLoad_EmptyFile(t *testing.T) {
+	path := writeTempEnv(t, ".env", "")
+
+	ef, err := Load(path)
+	if err != nil {
+		t.Fatalf("unexpected error loading empty file: %v", err)
+	}
+	if len(ef.Values) != 0 {
+		t.Errorf("expected no values for empty file, got %v", ef.Values)
+	}
+}
+
 func TestLoadPair_Success(t *testing.T) {
 	pathA := writeTempEnv(t, ".env", "KEY=one\n")
 	pathB := writeTempEnv(t, ".env.production", "KEY=two\n")
