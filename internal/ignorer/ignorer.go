@@ -3,6 +3,7 @@
 package ignorer
 
 import (
+	"fmt"
 	"path"
 	"strings"
 
@@ -23,6 +24,11 @@ func Apply(results []diff.Result, opts Options) ([]diff.Result, error) {
 		return results, nil
 	}
 
+	// Validate all patterns up front so we fail fast before processing results.
+	if err := validatePatterns(opts.Patterns); err != nil {
+		return nil, err
+	}
+
 	filtered := make([]diff.Result, 0, len(results))
 	for _, r := range results {
 		matched, err := matchesAny(r.Key, opts.Patterns)
@@ -34,6 +40,19 @@ func Apply(results []diff.Result, opts Options) ([]diff.Result, error) {
 		}
 	}
 	return filtered, nil
+}
+
+// validatePatterns checks that every pattern in the list is a valid glob
+// expression. It returns the first validation error encountered, if any.
+func validatePatterns(patterns []string) error {
+	for _, p := range patterns {
+		// path.Match returns ErrBadPattern for malformed patterns; a non-matching
+		// dummy string is used here purely to trigger syntax validation.
+		if _, err := path.Match(strings.ToUpper(p), ""); err != nil {
+			return fmt.Errorf("ignorer: invalid pattern %q: %w", p, err)
+		}
+	}
+	return nil
 }
 
 // matchesAny reports whether key matches any of the given glob patterns.
