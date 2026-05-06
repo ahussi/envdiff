@@ -42,6 +42,16 @@ type Result struct {
 	Sources map[string]string
 }
 
+// Keys returns a sorted-order-independent slice of all keys in the merged result.
+// It is a convenience method for iterating over Env without importing maps or sort.
+func (r *Result) Keys() []string {
+	keys := make([]string, 0, len(r.Env))
+	for k := range r.Env {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 // Merge combines multiple named env files into one according to the given strategy.
 // files is a slice of (label, EnvFile) pairs; label is used in error messages and
 // source tracking.
