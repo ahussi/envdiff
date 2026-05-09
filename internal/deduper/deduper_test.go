@@ -80,3 +80,18 @@ func TestAnalyse_SortedOutput(t *testing.T) {
 		t.Errorf("expected keys sorted: M, Z; got %s, %s", keys[0].Key, keys[1].Key)
 	}
 }
+
+func TestAnalyse_MultipleGroups(t *testing.T) {
+	envs := makeEnvs(map[string]map[string]string{
+		"prod": {
+			"DB_PASS":  "secret",
+			"API_KEY":  "secret",
+			"TOKEN_A":  "tok123",
+			"TOKEN_B":  "tok123",
+		},
+	})
+	res := deduper.Analyse(envs)
+	if len(res.Groups) != 2 {
+		t.Fatalf("expected 2 groups, got %d", len(res.Groups))
+	}
+}
