@@ -73,3 +73,19 @@ func quoteValue(v string) string {
 	}
 	return v
 }
+
+// Lines returns the patch as a slice of strings instead of writing to an
+// io.Writer.  It is a convenience wrapper around Write useful for testing and
+// in-memory processing.
+func Lines(results []diff.Result, format Format) ([]string, error) {
+	var sb strings.Builder
+	if err := Write(&sb, results, format); err != nil {
+		return nil, err
+	}
+	raw := sb.String()
+	if raw == "" {
+		return nil, nil
+	}
+	// Trim the trailing newline added by Fprintln before splitting.
+	return strings.Split(strings.TrimRight(raw, "\n"), "\n"), nil
+}
